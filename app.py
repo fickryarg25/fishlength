@@ -10,12 +10,12 @@ CSV_FILENAME = "fish_measurements.csv"
 # Species Database
 SPECIES_DB = {
     "Silver Pompano (Trachinotus blochii)": {
-        "a": 0.0263, "b": 2.83, 
-        "note": "Measure Total Length (Tip to Tail)"
+        "a": 0.023, "b": 2.854, 
+        "note": "Measure Total Length"
     },
-    "Spiny Lobster (Panulirus homarus) - Carapace": {
-        "a": 0.0021, "b": 2.77, 
-        "note": "Measure Carapace ONLY (Horns to start of Tail)"
+    "Spiny Lobster (Panulirus homarus) - TL": {
+        "a": 0.0035, "b": 2.89, 
+        "note": "Measure Total Length/Body Length"
     }
 }
 
