@@ -5,7 +5,6 @@ import pandas as pd
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 # --- CONFIGURATION ---
-RESIZE_WIDTH = 800  
 CSV_FILENAME = "fish_measurements.csv"
 
 # Species Database
@@ -43,6 +42,11 @@ st.title("🐟 Multi-Fish Batch Processor")
 # 1. SIDEBAR
 with st.sidebar:
     st.header("Settings")
+    
+    # [FIX] DYNAMIC RESIZE SLIDER
+    # This allows you to adjust the image size to fit your specific laptop screen
+    resize_width = st.slider("Image Display Size", min_value=400, max_value=1200, value=700, step=50, help="Reduce this if the image looks cropped/zoomed.")
+    
     species = st.selectbox("Select Species", list(SPECIES_DB.keys()))
     selected_fish = SPECIES_DB[species]
     st.caption(selected_fish['note'])
@@ -52,8 +56,7 @@ with st.sidebar:
     st.divider()
     st.header("Results")
     
-    if "results" not in st.session_state:
-        st.session_state["results"] = []
+    if "results" not in st.session_state: st.session_state["results"] = []
 
     if st.session_state["results"]:
         df = pd.DataFrame(st.session_state["results"])
@@ -66,10 +69,16 @@ with st.sidebar:
 # 2. FILE UPLOADER
 uploaded_files = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
 
-# Session State Init
 if "image_index" not in st.session_state: st.session_state["image_index"] = 0
 if "clicks" not in st.session_state: st.session_state["clicks"] = []
 if "component_key" not in st.session_state: st.session_state["component_key"] = 0
+if "last_resize_width" not in st.session_state: st.session_state["last_resize_width"] = resize_width
+
+# [FIX] Reset clicks if user changes the slider (otherwise dots will be in wrong place)
+if st.session_state["last_resize_width"] != resize_width:
+    st.session_state["clicks"] = []
+    st.session_state["component_key"] += 1
+    st.session_state["last_resize_width"] = resize_width
 
 # 3. MAIN LOGIC
 if uploaded_files:
@@ -87,45 +96,41 @@ if uploaded_files:
         img_original = cv2.imdecode(file_bytes, 1)
         img_rgb = cv2.cvtColor(img_original, cv2.COLOR_BGR2RGB)
         
-        # Resize
-        img_display = resize_image(img_rgb, RESIZE_WIDTH)
+        # [FIX] Use the slider value here
+        img_display = resize_image(img_rgb, resize_width)
         
         col1, col2 = st.columns([3, 1])
         
         with col1:
             st.subheader(f"Image: {current_file.name}")
             
-            # --- DRAWING ON IMAGE ---
+            # Draw Dots/Lines
             img_with_dots = img_display.copy()
             clicks = st.session_state["clicks"]
             
-            # Draw Calibration (First 2 points)
+            # Calibration (Blue)
             if len(clicks) >= 2:
-                cv2.line(img_with_dots, clicks[0], clicks[1], (255, 0, 0), 2) # Blue Line
+                cv2.line(img_with_dots, clicks[0], clicks[1], (255, 0, 0), 2)
                 cv2.circle(img_with_dots, clicks[0], 5, (255, 0, 0), -1)
                 cv2.circle(img_with_dots, clicks[1], 5, (255, 0, 0), -1)
             elif len(clicks) == 1:
                  cv2.circle(img_with_dots, clicks[0], 5, (255, 0, 0), -1)
 
-            # Draw Fish (Pairs after index 1)
-            # Logic: Iterate from index 2, in steps of 2 (2,3), (4,5), etc.
+            # Fish (Green)
             fish_count = 0
             for i in range(2, len(clicks), 2):
                 pt_head = clicks[i]
                 cv2.circle(img_with_dots, pt_head, 5, (0, 255, 0), -1)
                 
-                # Check if we have the tail pair
                 if i + 1 < len(clicks):
                     pt_tail = clicks[i+1]
                     cv2.circle(img_with_dots, pt_tail, 5, (0, 255, 0), -1)
-                    cv2.line(img_with_dots, pt_head, pt_tail, (0, 255, 0), 2) # Green Line
-                    
-                    # Add Label Number
+                    cv2.line(img_with_dots, pt_head, pt_tail, (0, 255, 0), 2)
                     fish_count += 1
                     cv2.putText(img_with_dots, f"#{fish_count}", (pt_head[0], pt_head[1]-10), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-            # --- INTERACTIVE COMPONENT ---
+            # Interactive Component
             dynamic_key = f"clicker_{st.session_state['component_key']}"
             value = streamlit_image_coordinates(img_with_dots, key=dynamic_key)
             
@@ -142,37 +147,29 @@ if uploaded_files:
             if n == 0: st.markdown("🔴 **Click 1:** Ruler Start")
             elif n == 1: st.markdown("🔴 **Click 2:** Ruler End")
             elif n >= 2:
-                # Determine if we are waiting for Head or Tail
-                # (n-2) is the number of fish clicks. If even, waiting for Head.
                 if (n - 2) % 2 == 0:
                     st.markdown(f"🟢 **Click:** Fish #{ (n-2)//2 + 1 } Head")
                 else:
                     st.markdown(f"🟢 **Click:** Fish #{ (n-2)//2 + 1 } Tail")
             
-            # --- CALCULATE & SHOW LIST ---
             if n >= 4 and n % 2 == 0:
                 st.divider()
                 st.write(" **Measurements:**")
                 
-                # 1. Calc Ruler
                 ruler_px = np.linalg.norm(np.array(clicks[0]) - np.array(clicks[1]))
                 px_per_cm = ruler_px / ruler_val
                 
-                current_fish_data = [] # To store temporary results
-                
-                # 2. Loop through all fish pairs
+                current_fish_data = []
                 count = 1
                 for i in range(2, len(clicks), 2):
                     pt1 = np.array(clicks[i])
                     pt2 = np.array(clicks[i+1])
-                    
                     fish_px = np.linalg.norm(pt1 - pt2)
                     len_cm = fish_px / px_per_cm
                     w_g = estimate_weight(len_cm, selected_fish['a'], selected_fish['b'])
                     
-                    st.write(f"**Fish #{count}:** {len_cm:.2f} cm | {w_g:.0f} g")
+                    st.write(f"**#{count}:** {len_cm:.2f} cm | {w_g:.0f} g")
                     
-                    # Save to temp list for the Save button
                     current_fish_data.append({
                         "Filename": current_file.name,
                         "Species": species,
@@ -181,26 +178,20 @@ if uploaded_files:
                         "Weight (g)": round(w_g, 2)
                     })
                     
-                    # Burn text onto image for download
                     label = f"#{count} {len_cm:.1f}cm"
                     cv2.putText(img_with_dots, label, (clicks[i][0], clicks[i][1]-10), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                     count += 1
                 
-                # --- DOWNLOAD IMAGE ---
                 is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_with_dots, cv2.COLOR_RGB2BGR))
                 if is_success:
-                    st.download_button("📥 Download Marked Image", buffer.tobytes(), f"marked_{current_file.name}", "image/png")
+                    st.download_button("📥 Download Image", buffer.tobytes(), f"marked_{current_file.name}", "image/png")
 
                 st.divider()
-                
-                # --- SAVE BUTTON ---
-                if st.button(f"Save {count-1} Fish & Next Image", type="primary"):
-                    # Append ALL fish to the master results
+                if st.button(f"Save {count-1} Fish & Next", type="primary"):
                     st.session_state["results"].extend(current_fish_data)
                     reset_for_next_image()
 
-            # --- UNDO ---
             if n > 0:
                 if st.button("Undo Last Click"):
                     st.session_state["clicks"].pop()
