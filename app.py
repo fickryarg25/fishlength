@@ -14,7 +14,7 @@ SPECIES_DB = {
         "note": "Measure Total Length"
     },
     "Spiny Lobster (Panulirus homarus) - TL": {
-        "a": 0.0039, "b": 2.89, 
+        "a": 0.039, "b": 2.89, 
         "note": "Measure Total Length/Body Length"
     }
 }
