@@ -17,10 +17,6 @@ SPECIES_DB = {
     "Spiny Lobster (Panulirus homarus) - Carapace": {
         "a": 0.0021, "b": 2.77, 
         "note": "Measure Carapace ONLY (Horns to start of Tail)"
-    },
-    "Spiny Lobster (Panulirus homarus) - Total": {
-        "a": 0.0712, "b": 2.82, 
-        "note": "Measure Total Length (Horns to Tail Tip)"
     }
 }
 
