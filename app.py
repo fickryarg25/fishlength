@@ -43,9 +43,8 @@ st.title("🐟 Multi-Fish Batch Processor")
 with st.sidebar:
     st.header("Settings")
     
-    # [FIX] DYNAMIC RESIZE SLIDER
-    # This allows you to adjust the image size to fit your specific laptop screen
-    resize_width = st.slider("Image Display Size", min_value=400, max_value=1200, value=700, step=50, help="Reduce this if the image looks cropped/zoomed.")
+    # Dynamic Resize Slider
+    resize_width = st.slider("Image Display Size", min_value=400, max_value=1200, value=700, step=50)
     
     species = st.selectbox("Select Species", list(SPECIES_DB.keys()))
     selected_fish = SPECIES_DB[species]
@@ -54,18 +53,57 @@ with st.sidebar:
     ruler_val = st.number_input("Ruler Reference (cm)", value=1.0, step=0.1)
     
     st.divider()
-    st.header("Results")
+    st.header("Results & Uniformity")
     
     if "results" not in st.session_state: st.session_state["results"] = []
 
     if st.session_state["results"]:
+        # Convert results to a pandas DataFrame
         df = pd.DataFrame(st.session_state["results"])
+        
+        # --- CALCULATE UNIFORMITY (YOUR FORMULA) ---
+        if len(df) > 1:
+            mean_length = df["Length (cm)"].mean()
+            std_length = df["Length (cm)"].std()
+            
+            if mean_length > 0:
+                # Formula: (1 - (SD / Mean)) * 100
+                uniformity_score = (1 - (std_length / mean_length)) * 100
+            else:
+                uniformity_score = 0.0
+            
+            # Add these as new columns to the CSV
+            df["Batch_Mean_Length (cm)"] = round(mean_length, 2)
+            df["Uniformity (%)"] = round(uniformity_score, 2)
+            
+            # Display a nice metric on the screen
+            st.metric("Batch Uniformity", f"{uniformity_score:.1f}%")
+            
+            # Interpretation Guide
+            if uniformity_score >= 90:
+                st.success("✅ Excellent Uniformity")
+            elif uniformity_score >= 80:
+                st.info("ℹ️ Normal Uniformity")
+            else:
+                st.warning("⚠️ Low Uniformity (Grading Needed)")
+                
+        else:
+            # If only 1 fish is measured, uniformity is perfect
+            df["Batch_Mean_Length (cm)"] = df["Length (cm)"]
+            df["Uniformity (%)"] = 100.0
+            st.metric("Batch Uniformity", "100.0%")
+        
+        # Show the table and Download Button
         st.dataframe(df, hide_index=True)
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download CSV", data=csv, file_name=CSV_FILENAME, mime="text/csv")
+        st.download_button("📥 Download CSV Data", data=csv, file_name=CSV_FILENAME, mime="text/csv")
+        
+        if st.button("Clear All Data"):
+            st.session_state["results"] = []
+            st.rerun()
     else:
         st.info("No measurements yet.")
-
+        
 # 2. FILE UPLOADER
 uploaded_files = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
 
