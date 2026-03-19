@@ -9,13 +9,13 @@ CSV_FILENAME = "fish_measurements.csv"
 
 # Species Database
 SPECIES_DB = {
-    "Silver Pompano (Trachinotus blochii)": {
-        "a": 0.023, "b": 2.854, 
+    "Trachinotus blochii": {
+        "a": 0.023, "b": 2.864, 
         "note": "Measure Total Length"
     },
-    "Spiny Lobster (Panulirus homarus) - TL": {
-        "a": 0.039, "b": 2.89, 
-        "note": "Measure Total Length/Body Length"
+    "Panulirus homarus": {
+        "a": 0.039, "b": 2.79, 
+        "note": "Measure Total Length"
     }
 }
 
@@ -37,7 +37,7 @@ def reset_for_next_image():
 
 # --- MAIN APP ---
 st.set_page_config(page_title="Multi-Fish Measurer", layout="wide")
-st.title("🐟 Multi-Fish Batch Processor")
+st.title("Multi-Fish Measurer")
 
 # 1. SIDEBAR
 with st.sidebar:
@@ -96,7 +96,7 @@ with st.sidebar:
         # Show the table and Download Button
         st.dataframe(df, hide_index=True)
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download CSV Data", data=csv, file_name=CSV_FILENAME, mime="text/csv")
+        st.download_button("Download CSV Data", data=csv, file_name=CSV_FILENAME, mime="text/csv")
         
         if st.button("Clear All Data"):
             st.session_state["results"] = []
@@ -121,7 +121,7 @@ if st.session_state["last_resize_width"] != resize_width:
 # 3. MAIN LOGIC
 if uploaded_files:
     if st.session_state["image_index"] >= len(uploaded_files):
-        st.success("✅ All images processed!")
+        st.success("All images processed!")
         if st.button("Start Over"):
             st.session_state["image_index"] = 0
             st.session_state["results"] = []
@@ -236,4 +236,4 @@ if uploaded_files:
                     st.session_state["component_key"] += 1
                     st.rerun()
 else:
-    st.info("👆 Please upload images to begin.")
+    st.info("Please upload images to begin.")
