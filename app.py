@@ -27,7 +27,7 @@ with tab_measure:
 
     SPECIES_DB = {
         "Silver Pompano (Trachinotus blochii)": {
-            "a": 0.0472, "b": 2.67, 
+            "a": 0.0353, "b": 2.78, 
             "note": "Measure Total Length (Tip to Tail)"
         },
         "Spiny Lobster (P. homarus) - Total Length": {
